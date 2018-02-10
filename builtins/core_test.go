@@ -320,3 +320,26 @@ loop:
 		env.Destroy()
 	}
 }
+
+func TestImportable(t *testing.T) {
+	os.Setenv("ANKO_DEBUG", "1")
+	env := vm.NewEnv()
+	LoadAllBuiltins(env)
+	c := env.NewPackage("cc")
+	err := c.Define("test", 10)
+	if err != nil {
+		t.Fatalf("Define error: %v\n", err)
+	}
+	AddImportable(c)
+	script := `
+	var cc = import("cc")
+	cc.test
+	`
+	v, err := env.Execute(script)
+	if err != nil {
+		t.Fatalf("Executte error: %v\n", err)
+	}
+	if !reflect.DeepEqual(v, 10) {
+		t.Fatalf("want %v got %v", 10, v)
+	}
+}

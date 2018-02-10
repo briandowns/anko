@@ -40,11 +40,13 @@ import (
 	anko_colortext "github.com/mattn/anko/builtins/github.com/daviddengcn/go-colortext"
 )
 
+var pkgs = map[string]func(env *vm.Env) *vm.Env{}
+
 // LoadAllBuiltins is a convenience function that loads all defined builtins.
 func LoadAllBuiltins(env *vm.Env) {
 	Import(env)
 
-	pkgs := map[string]func(env *vm.Env) *vm.Env{
+	builtins := map[string]func(env *vm.Env) *vm.Env{
 		"encoding/json": anko_encoding_json.Import,
 		"errors":        anko_errors.Import,
 		"flag":          anko_flag.Import,
@@ -70,14 +72,16 @@ func LoadAllBuiltins(env *vm.Env) {
 		"time":          anko_time.Import,
 		"github.com/daviddengcn/go-colortext": anko_colortext.Import,
 	}
+	for k, v := range builtins {
+		pkgs[k] = v
+	}
+}
 
-	env.Define("import", func(s string) interface{} {
-		if loader, ok := pkgs[s]; ok {
-			m := loader(env)
-			return m
-		}
-		panic(fmt.Sprintf("package '%s' not found", s))
-	})
+// AddImportable append package importable
+func AddImportable(pkg *vm.Env) {
+	pkgs[pkg.GetName()] = func(env *vm.Env) *vm.Env {
+		return pkg
+	}
 }
 
 // Import defines core language builtins - len, range, println, int64, etc.
@@ -306,6 +310,14 @@ func Import(env *vm.Env) *vm.Env {
 	env.DefineType("float64", float64(1))
 	env.DefineType("string", "a")
 	env.DefineType("rune", 'a')
+
+	env.Define("import", func(s string) interface{} {
+		if loader, ok := pkgs[s]; ok {
+			m := loader(env)
+			return m
+		}
+		panic(fmt.Sprintf("package '%s' not found", s))
+	})
 	return env
 }
 
